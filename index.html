@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vertically Outpaint</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #333; }
+    .container { max-width: 500px; margin: auto; padding: 1rem; }
+    .title-container { text-align: center; margin-bottom: 1rem; }
+    h1 { font-size: 1.75rem; margin: 0; }
+    .subtitle { margin-top: 0.5rem; font-size: 1.125rem; color: #555; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 1rem; margin-bottom: 1rem; }
+    .field { margin-bottom: 0.75rem; }
+    label { display: block; margin-bottom: 0.25rem; font-weight: 500; }
+    input[type="file"] { width: 100%; }
+    select, input[type="number"] { width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .presets { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .presets button { flex: 1; padding: 0.5rem; border: none; border-radius: 4px; background: #e5e7eb; cursor: pointer; }
+    .presets button.active { background: #3b82f6; color: #fff; }
+    #generate { width: 100%; padding: 0.75rem; font-size: 1rem; border: none; border-radius: 4px; background: #3b82f6; color: white; cursor: pointer; }
+    #generate:disabled { opacity: 0.6; cursor: default; }
+    #spinner { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.6); align-items: center; justify-content: center; }
+    #spinner img { width: 50px; }
+    #output img { max-width: 100%; border-radius: 4px; display: block; margin: 0 auto 1rem; }
+    .result-container { margin-bottom: 1rem; }
+    .button-group { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.25rem; }
+    .button-group button { padding: 0.25rem 0.5rem; font-size: 0.875rem; border: 1px solid #ddd; border-radius: 4px; background: #e5e7eb; cursor: pointer; }
+    .accordion { cursor: pointer; user-select: none; }
+    .panel { max-height: 0; overflow: hidden; transition: max-height 0.2s ease-out; }
+  </style>
+</head>
+<body>
+  <div id="spinner"><img src="https://i.imgur.com/llF5iyg.gif" alt="Loading..."></div>
+  <div class="container">
+    <div class="title-container">
+      <h1>Post Vertically. Capture Attention.</h1>
+      <p class="subtitle">Resize for full-screen Stories and Posts.</p>
+    </div>
+    <div class="card">
+      <div class="field">
+        <label for="img">Upload Image</label>
+        <input type="file" id="img" accept="image/*">
+      </div>
+      <div class="presets">
+        <button data-ratio="9:16" class="preset active">Stories (9:16)</button>
+        <button data-ratio="3:4" class="preset">Posts (3:4)</button>
+      </div>
+      <input type="hidden" id="width" value="720">
+      <input type="hidden" id="height" value="1280">
+      <div class="accordion">Advanced Options ▼</div>
+      <div class="panel">
+        <div class="field">
+          <label for="overlap">Overlap (%)</label>
+          <input type="number" id="overlap" value="1" min="0" max="100">
+        </div>
+        <div class="field">
+          <label for="alignment">Alignment</label>
+          <select id="alignment">
+            <option>Middle</option>
+            <option>Top</option>
+            <option>Bottom</option>
+            <option>Left</option>
+            <option>Right</option>
+          </select>
+        </div>
+      </div>
+      <!-- Changed label here -->
+      <button id="generate">Generate</button>
+    </div>
+    <div id="output" class="card"></div>
+  </div>
+  <script>
+    const output = document.getElementById('output');
+    const imgInput = document.getElementById('img');
+    const generateBtn = document.getElementById('generate');
+    const spinner = document.getElementById('spinner');
+
+    // Accordion toggle
+    document.querySelector('.accordion').addEventListener('click', function() {
+      this.classList.toggle('active');
+      const panel = this.nextElementSibling;
+      panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + 'px';
+    });
+
+    // Preset buttons logic
+    const presetMap = {
+      "9:16": { width: 720, height: 1280 },
+      "3:4": { width: 720, height: 960 }
+    };
+    document.querySelectorAll('.preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const { width, height } = presetMap[btn.dataset.ratio];
+        document.getElementById('width').value = width;
+        document.getElementById('height').value = height;
+      });
+    });
+
+    // Preview uploaded image (only one at a time)
+    imgInput.addEventListener('change', function(e) {
+      // clear previous previews and results
+      output.innerHTML = '';
+      generateBtn.textContent = 'Generate';
+      const file = e.target.files[0];
+      if (file) {
+        const url = URL.createObjectURL(file);
+        const imgElem = document.createElement('img');
+        imgElem.src = url;
+        imgElem.classList.add('preview');
+        output.appendChild(imgElem);
+      }
+    });
+
+    // Generate function, stacks results beneath original
+    async function generate() {
+      spinner.style.display = 'flex';
+      generateBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append('image', imgInput.files[0]);
+      formData.append('width', document.getElementById('width').value);
+      formData.append('height', document.getElementById('height').value);
+      formData.append('prompt_input', '');
+      formData.append('overlap_percentage', document.getElementById('overlap').value);
+      formData.append('num_inference_steps', 8);
+      formData.append('resize_option', 'Full');
+      formData.append('custom_resize_percentage', 50);
+      formData.append('alignment', document.getElementById('alignment').value);
+      formData.append('overlap_left', true);
+      formData.append('overlap_right', true);
+      formData.append('overlap_top', true);
+      formData.append('overlap_bottom', true);
+
+      try {
+        const res = await fetch('/api/infer/', { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('Generation failed');
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+
+        // container for this result
+        const container = document.createElement('div');
+        container.classList.add('result-container');
+
+        // the generated image
+        const img = document.createElement('img');
+        img.src = url;
+        img.classList.add('generated');
+        container.appendChild(img);
+
+        // tiny button group
+        const btnGroup = document.createElement('div');
+        btnGroup.classList.add('button-group');
+
+        const dl = document.createElement('button');
+        dl.textContent = 'Download';
+        dl.addEventListener('click', () => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'outpaint.png';
+          a.click();
+        });
+
+        const ig = document.createElement('button');
+        ig.textContent = 'Share to IG';
+        ig.addEventListener('click', () => {
+          if (navigator.share) {
+            navigator.share({ title: 'Check out my outpaint', url });
+          } else {
+            window.open('https://www.instagram.com/', '_blank');
+          }
+        });
+
+        btnGroup.appendChild(dl);
+        btnGroup.appendChild(ig);
+        container.appendChild(btnGroup);
+
+        // new: insert immediately after the original preview
+        output.appendChild(container);
+        const previewImg = output.querySelector('img.preview');
+        previewImg.parentNode.insertBefore(container, previewImg.nextSibling);
+
+        // update button label
+        generateBtn.textContent = 'Re-Generate';
+      } catch (e) {
+        alert('Error: ' + e.message);
+      } finally {
+        spinner.style.display = 'none';
+        generateBtn.disabled = false;
+      }
+    }
+
+    generateBtn.addEventListener('click', generate);
+
+    // Prevent default drag/drop on file input
+    ['dragenter','dragover','dragleave','drop'].forEach(eventName => {
+      imgInput.addEventListener(eventName, e => {
+        e.preventDefault(); e.stopPropagation();
+      }, false);
+    });
+    imgInput.addEventListener('drop', e => {
+      imgInput.files = e.dataTransfer.files;
+    }, false);
+  </script>
+</body>
+</html>
