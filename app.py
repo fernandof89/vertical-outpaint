@@ -1,9 +1,12 @@
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from gradio_client import Client, handle_file
 import tempfile
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")  # ← and this
+
 hf = Client("fernandofurundarena/diffusers-image-outpaint")
 
 @app.get("/", response_class=HTMLResponse)
