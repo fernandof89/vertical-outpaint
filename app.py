@@ -23,7 +23,7 @@ def get_hf_client():
         try:
             from gradio_client import Client, handle_file
             # you can add request_timeout or max_retries here if needed:
-            get_hf_client.client = Client("fernandofurundarena/diffusers-image-outpaint")
+            get_hf_client.client = Client("fernandofurundarena/diffusers-image-outpaint", hf_token=os.environ["HUGGINGFACE_HUB_TOKEN"])
             get_hf_client.handle_file = handle_file
         except Exception as e:
             # failed to reach HF space — stub it
