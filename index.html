@@ -50,9 +50,10 @@
 
       <div class="presets">
         <button data-ratio="9:16" class="preset active">Stories (9:16)</button>
-        <button data-ratio="3:4" class="preset">Posts (3:4)</button>
+        <button data-ratio="4:5" class="preset">Posts (4:5)</button>
       </div>
 
+      <!-- These hidden fields will be updated by the preset buttons -->
       <input type="hidden" id="width" value="720" />
       <input type="hidden" id="height" value="1280" />
 
@@ -95,11 +96,12 @@
         : panel.scrollHeight + 'px';
     });
 
-    // Preset buttons
+    // Preset buttons: 9:16 → (720×1280), 4:5 → (1088×1360)
     const presetMap = {
-      "9:16": { width:720, height:1280 },
-      "3:4":  { width:720, height:960  }
+      "9:16": { width:720,  height:1280  },
+      "4:5":  { width:1088, height:1360  }
     };
+
     document.querySelectorAll('.preset').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
@@ -110,7 +112,7 @@
       });
     });
 
-    // Preview upload
+    // Preview upload: show the selected JPEG/PNG immediately
     imgInput.addEventListener('change', function(e) {
       output.innerHTML = '';
       generateBtn.textContent = 'Generate';
@@ -123,7 +125,7 @@
       output.appendChild(imgElem);
     });
 
-    // Generate & display
+    // Generate & display: call FastAPI /infer/ → get back {url:"/static/results/…"} 
     async function generate() {
       spinner.style.display = 'flex';
       generateBtn.disabled = true;
@@ -184,7 +186,7 @@
         btnGroup.append(dl, ig);
         container.appendChild(btnGroup);
 
-        // Insert after preview
+        // Insert right after the preview image
         const previewImg = output.querySelector('img.preview');
         if (previewImg) {
           previewImg.insertAdjacentElement('afterend', container);
@@ -203,7 +205,7 @@
 
     generateBtn.addEventListener('click', generate);
 
-    // Prevent default drag/drop
+    // Prevent default drag/drop on file input
     ['dragenter','dragover','dragleave','drop'].forEach(evt => {
       imgInput.addEventListener(evt, e => {
         e.preventDefault(); e.stopPropagation();
