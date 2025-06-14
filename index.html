@@ -4,37 +4,40 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Vertically Outpaint</title>
+
   <style>
-    * { box-sizing: border-box; }
-    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f9fafb; color:#333; }
-    .container { max-width:500px; margin:auto; padding:1rem; }
-    .title-container { text-align:center; margin-bottom:1rem; }
-    h1 { font-size:1.75rem; margin:0; }
-    .subtitle { margin-top:.5rem; font-size:1.125rem; color:#555; }
-    .card { background:#fff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:1rem; margin-bottom:1rem; }
-    .field { margin-bottom:.75rem; }
-    label { display:block; margin-bottom:.25rem; font-weight:500; }
-    input[type="file"] { width:100%; }
-    select,input[type="number"] { width:100%; padding:.5rem; border:1px solid #ddd; border-radius:4px; }
-    .presets { display:flex; gap:.5rem; margin-bottom:.75rem; }
-    .presets button { flex:1; padding:.5rem; border:none; border-radius:4px; background:#e5e7eb; cursor:pointer; }
-    .presets button.active { background:#3b82f6; color:#fff; }
-    #generate { width:100%; padding:.75rem; font-size:1rem; border:none; border-radius:4px; background:#3b82f6; color:#fff; cursor:pointer; }
-    #generate:disabled { opacity:.6; cursor:default; }
-    #spinner { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.6); align-items:center; justify-content:center; z-index:9999; }
-    #spinner img { width:50px; }
-    #output img { max-width:100%; border-radius:4px; display:block; margin:0 auto 1rem; }
-    .result-container { margin-bottom:1rem; }
-    .button-group { display:flex; gap:.5rem; justify-content:center; margin-top:.25rem; }
-    .button-group button { padding:.25rem .5rem; font-size:.875rem; border:1px solid #ddd; border-radius:4px; background:#e5e7eb; cursor:pointer; }
-    .accordion { cursor:pointer; user-select:none; }
-    .panel { max-height:0; overflow:hidden; transition:max-height .2s ease-out; }
+    /* ——— basic layout / look ——— */
+    *{box-sizing:border-box}
+    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;color:#333}
+    .container{max-width:500px;margin:auto;padding:1rem}
+    .title-container{text-align:center;margin-bottom:1rem}
+    h1{font-size:1.75rem;margin:0}.subtitle{margin-top:.5rem;font-size:1.125rem;color:#555}
+    .card{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:1rem;margin-bottom:1rem}
+    .field{margin-bottom:.75rem}label{display:block;margin-bottom:.25rem;font-weight:500}
+    input[type=file]{width:100%}select,input[type=number]{width:100%;padding:.5rem;border:1px solid #ddd;border-radius:4px}
+    .presets{display:flex;gap:.5rem;margin-bottom:.75rem}.presets button{flex:1;padding:.5rem;border:none;border-radius:4px;background:#e5e7eb;cursor:pointer}.presets button.active{background:#3b82f6;color:#fff}
+    #generate{width:100%;padding:.75rem;font-size:1rem;border:none;border-radius:4px;background:#3b82f6;color:#fff;cursor:pointer}#generate:disabled{opacity:.6;cursor:default}
+    #spinner{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.6);align-items:center;justify-content:center;z-index:9999}#spinner img{width:50px}
+    #output img{max-width:100%;border-radius:4px;display:block;margin:0 auto 1rem}
+    .accordion{cursor:pointer;user-select:none}.panel{max-height:0;overflow:hidden;transition:max-height .2s ease-out}
+
+    /* ——— preview gets same frame as sliders ——— */
+    #previewContainer{border:1px solid #eee;padding:1rem;border-radius:8px;margin-top:.5rem}
+    #previewContainer img{max-width:100%;border-radius:6px}
+
+    /* ——— slider block ——— */
+    .slider-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;margin-bottom:1.5rem;position:relative;border:1px solid #eee;padding:1rem;border-radius:8px}
+    .slider-wrap img{max-width:100%;border-radius:6px}
+    .nav-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.45);color:#fff;border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:34px;text-align:center}
+    .slider-wrap:hover .nav-btn{display:block}
+    .nav-prev{left:4px}.nav-next{right:4px}
+    .btn-dl{padding:.4rem 1rem;font-size:.9rem;border:none;border-radius:4px;background:#3b82f6;color:#fff;cursor:pointer}
+
+    @media(min-width:640px){.nav-btn{display:block}}
   </style>
 </head>
 <body>
-  <div id="spinner">
-    <img src="/static/loader.gif" alt="Loading…" />
-  </div>
+  <div id="spinner"><img src="/static/loader.gif" alt="Loading…"></div>
 
   <div class="container">
     <div class="title-container">
@@ -42,35 +45,33 @@
       <p class="subtitle">Resize for full-screen Stories and Posts.</p>
     </div>
 
+    <!-- ——— controls ——— -->
     <div class="card">
       <div class="field">
         <label for="img">Upload Image</label>
-        <input type="file" id="img" accept="image/*" />
+        <input type="file" id="img" accept="image/*">
+        <div id="previewContainer"></div>
       </div>
 
       <div class="presets">
-        <button data-ratio="9:16" class="preset active">Stories (9:16)</button>
-        <button data-ratio="4:5" class="preset">Posts (4:5)</button>
+        <button data-ratio="9:16" class="preset active">Stories&nbsp;(9 : 16)</button>
+        <button data-ratio="4:5"  class="preset">Posts&nbsp;(4 : 5)</button>
       </div>
 
-      <!-- These hidden fields will be updated by the preset buttons -->
-      <input type="hidden" id="width" value="720" />
-      <input type="hidden" id="height" value="1280" />
+      <input type="hidden" id="width"  value="720">
+      <input type="hidden" id="height" value="1280">
 
       <div class="accordion">Advanced Options ▼</div>
       <div class="panel">
         <div class="field">
-          <label for="overlap">Overlap (%)</label>
-          <input type="number" id="overlap" value="1" min="0" max="100" />
+          <label for="overlap">Overlap&nbsp;(%)</label>
+          <input type="number" id="overlap" value="1" min="0" max="100">
         </div>
         <div class="field">
           <label for="alignment">Alignment</label>
           <select id="alignment">
-            <option>Middle</option>
-            <option>Top</option>
-            <option>Bottom</option>
-            <option>Left</option>
-            <option>Right</option>
+            <option>Middle</option><option>Top</option><option>Bottom</option>
+            <option>Left</option><option>Right</option>
           </select>
         </div>
       </div>
@@ -78,142 +79,112 @@
       <button id="generate">Generate</button>
     </div>
 
+    <!-- ——— results ——— -->
     <div id="output" class="card"></div>
   </div>
 
-  <script>
-    const output       = document.getElementById('output');
-    const imgInput     = document.getElementById('img');
-    const generateBtn  = document.getElementById('generate');
-    const spinner      = document.getElementById('spinner');
+<script>
+const imgInput = document.getElementById('img');
+const genBtn   = document.getElementById('generate');
+const spinner  = document.getElementById('spinner');
+const output   = document.getElementById('output');
+const previewBox = document.getElementById('previewContainer');
 
-    // Accordion toggle
-    document.querySelector('.accordion').addEventListener('click', function() {
-      this.classList.toggle('active');
-      const panel = this.nextElementSibling;
-      panel.style.maxHeight = panel.style.maxHeight
-        ? null
-        : panel.scrollHeight + 'px';
-    });
+/* accordion */
+document.querySelector('.accordion').onclick=e=>{
+  const p=e.currentTarget.nextElementSibling;
+  e.currentTarget.classList.toggle('active');
+  p.style.maxHeight = p.style.maxHeight?null:p.scrollHeight+'px';
+};
 
-    // Preset buttons: 9:16 → (720×1280), 4:5 → (1088×1360)
-    const presetMap = {
-      "9:16": { width:720,  height:1280  },
-      "4:5":  { width:1088, height:1360  }
-    };
+/* presets */
+const preset = {"9:16":{w:720,h:1280},"4:5":{w:1088,h:1360}};
+document.querySelectorAll('.preset').forEach(btn=>{
+  btn.onclick=()=>{
+    document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const {w,h}=preset[btn.dataset.ratio];
+    width.value=w;height.value=h;
+  };
+});
 
-    document.querySelectorAll('.preset').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const { width, height } = presetMap[btn.dataset.ratio];
-        document.getElementById('width').value  = width;
-        document.getElementById('height').value = height;
-      });
-    });
+/* preview */
+imgInput.onchange=e=>{
+  previewBox.innerHTML='';
+  const f=e.target.files[0]; if(!f)return;
+  const img=document.createElement('img');
+  img.src=URL.createObjectURL(f);
+  previewBox.append(img);
+};
 
-    // Preview upload: show the selected JPEG/PNG immediately
-    imgInput.addEventListener('change', function(e) {
-      output.innerHTML = '';
-      generateBtn.textContent = 'Generate';
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      const imgElem = document.createElement('img');
-      imgElem.src = url;
-      imgElem.classList.add('preview');
-      output.appendChild(imgElem);
-    });
+/* build one slider block */
+function makeSlider(urls){
+  const wrap=document.createElement('div');wrap.className='slider-wrap';
 
-    // Generate & display: call FastAPI /infer/ → get back {url:"/static/results/…"} 
-    async function generate() {
-      spinner.style.display = 'flex';
-      generateBtn.disabled = true;
+  const img=document.createElement('img');img.src=urls[0];wrap.append(img);
 
-      const formData = new FormData();
-      formData.append('image', imgInput.files[0]);
-      formData.append('width', document.getElementById('width').value);
-      formData.append('height', document.getElementById('height').value);
-      formData.append('prompt_input', '');
-      formData.append('overlap_percentage', document.getElementById('overlap').value);
-      formData.append('num_inference_steps', 8);
-      formData.append('resize_option', 'Full');
-      formData.append('custom_resize_percentage', 50);
-      formData.append('alignment', document.getElementById('alignment').value);
-      formData.append('overlap_left', false);
-      formData.append('overlap_right', false);
-      formData.append('overlap_top', true);
-      formData.append('overlap_bottom', true);
+  const prev=document.createElement('button');prev.textContent='❮';prev.className='nav-btn nav-prev';
+  const next=document.createElement('button');next.textContent='❯';next.className='nav-btn nav-next';
+  wrap.append(prev,next);
 
-      try {
-        const res = await fetch('/api/infer/', { method:'POST', body:formData });
-        if (!res.ok) throw new Error('Generation failed');
-        const { url } = await res.json();
+  const dl=document.createElement('button');dl.textContent='Download';dl.className='btn-dl';
+  wrap.append(dl);
 
-        // Build result container
-        const container = document.createElement('div');
-        container.classList.add('result-container');
+  let idx=0,total=urls.length;
+  const show=i=>{idx=(i+total)%total;img.src=urls[idx];};
+  prev.onclick=_=>show(idx-1);
+  next.onclick=_=>show(idx+1);
 
-        // Result image
-        const resultImg = document.createElement('img');
-        resultImg.src = url;
-        resultImg.classList.add('generated');
-        container.appendChild(resultImg);
+  /* swipe on mobile */
+  img.addEventListener('touchstart',e=>wrap._sx=e.touches[0].clientX,{passive:true});
+  img.addEventListener('touchend',e=>{
+    if(wrap._sx==null)return;
+    const dx=e.changedTouches[0].clientX-wrap._sx;
+    if(Math.abs(dx)>30) show(dx>0?idx-1:idx+1);
+    wrap._sx=null;
+  },{passive:true});
 
-        // Download & share buttons
-        const btnGroup = document.createElement('div');
-        btnGroup.classList.add('button-group');
+  dl.onclick=_=>{
+    const a=document.createElement('a');
+    a.href=urls[idx];a.download='outpaint.png';a.click();
+  };
+  return wrap;
+}
 
-        const dl = document.createElement('button');
-        dl.textContent = 'Download';
-        dl.addEventListener('click', () => {
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = 'outpaint.png';
-          a.click();
-        });
+/* generate */
+async function generate(){
+  if(!imgInput.files[0]){alert('Select an image first');return;}
+  spinner.style.display='flex';genBtn.disabled=true;
 
-        const ig = document.createElement('button');
-        ig.textContent = 'Share to IG';
-        ig.addEventListener('click', () => {
-          if (navigator.share) {
-            navigator.share({ title:'Check out my outpaint', url });
-          } else {
-            window.open('https://www.instagram.com/', '_blank');
-          }
-        });
+  const fd=new FormData();
+  fd.append('image',imgInput.files[0]);
+  fd.append('width',width.value);fd.append('height',height.value);
+  fd.append('prompt_input','');
+  fd.append('overlap_percentage',overlap.value);
+  fd.append('num_inference_steps',8);
+  fd.append('resize_option','Full');fd.append('custom_resize_percentage',50);
+  fd.append('alignment',alignment.value);
+  fd.append('overlap_left',false);fd.append('overlap_right',false);
+  fd.append('overlap_top',true);fd.append('overlap_bottom',true);
 
-        btnGroup.append(dl, ig);
-        container.appendChild(btnGroup);
+  try{
+    const r=await fetch('/api/infer/',{method:'POST',body:fd});
+    if(!r.ok) throw new Error(await r.text());
+    const {urls}=await r.json();
+    if(!urls?.length) throw new Error('No images returned');
 
-        // Insert right after the preview image
-        const previewImg = output.querySelector('img.preview');
-        if (previewImg) {
-          previewImg.insertAdjacentElement('afterend', container);
-        } else {
-          output.appendChild(container);
-        }
+    output.prepend(makeSlider(urls));      // newest on top
+    genBtn.textContent='Re-Generate';
+  }catch(err){alert('Error: '+err.message);}
+  finally{spinner.style.display='none';genBtn.disabled=false;}
+}
+genBtn.onclick=generate;
 
-        generateBtn.textContent = 'Re-Generate';
-      } catch(e) {
-        alert('Error: ' + e.message);
-      } finally {
-        spinner.style.display = 'none';
-        generateBtn.disabled = false;
-      }
-    }
-
-    generateBtn.addEventListener('click', generate);
-
-    // Prevent default drag/drop on file input
-    ['dragenter','dragover','dragleave','drop'].forEach(evt => {
-      imgInput.addEventListener(evt, e => {
-        e.preventDefault(); e.stopPropagation();
-      }, false);
-    });
-    imgInput.addEventListener('drop', e => {
-      imgInput.files = e.dataTransfer.files;
-    }, false);
-  </script>
+/* drag-drop guard */
+['dragenter','dragover','dragleave','drop'].forEach(evt=>{
+  imgInput.addEventListener(evt,e=>{e.preventDefault();e.stopPropagation();},false);
+});
+imgInput.ondrop=e=>{imgInput.files=e.dataTransfer.files};
+</script>
 </body>
 </html>
