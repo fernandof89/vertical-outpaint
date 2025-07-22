@@ -2,3 +2,6 @@ fastapi
 uvicorn
 gradio-client
 python-multipart
+supabase
+python-jose
+stripe

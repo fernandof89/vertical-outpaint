@@ -4,39 +4,218 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Vertically Outpaint</title>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://zzoghuzxvgwmomvgqccr.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6b2dodXp4dmd3bW9tdmdxY2NyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTIyNzM5MDMsImV4cCI6MjA2Nzg0OTkwM30.hyDpRitGdJOLz6ji7YzT8Jc9OtE1JL8O9iy3NeDTJIY';
+    window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
   <style>
-    /* ——— basic layout / look ——— */
-    *{box-sizing:border-box}
-    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f9fafb;color:#333}
-    .container{max-width:500px;margin:auto;padding:1rem}
-    .title-container{text-align:center;margin-bottom:1rem}
-    h1{font-size:1.75rem;margin:0}.subtitle{margin-top:.5rem;font-size:1.125rem;color:#555}
-    .card{background:#fff;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:1rem;margin-bottom:1rem}
-    .field{margin-bottom:.75rem}label{display:block;margin-bottom:.25rem;font-weight:500}
-    input[type=file]{width:100%}select,input[type=number]{width:100%;padding:.5rem;border:1px solid #ddd;border-radius:4px}
-    .presets{display:flex;gap:.5rem;margin-bottom:.75rem}.presets button{flex:1;padding:.5rem;border:none;border-radius:4px;background:#e5e7eb;cursor:pointer}.presets button.active{background:#3b82f6;color:#fff}
-    #generate{width:100%;padding:.75rem;font-size:1rem;border:none;border-radius:4px;background:#3b82f6;color:#fff;cursor:pointer}#generate:disabled{opacity:.6;cursor:default}
-    #spinner{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,255,255,.6);align-items:center;justify-content:center;z-index:9999}#spinner img{width:50px}
-    #output img{max-width:100%;border-radius:4px;display:block;margin:0 auto 1rem}
-    .accordion{cursor:pointer;user-select:none}.panel{max-height:0;overflow:hidden;transition:max-height .2s ease-out}
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f9fafb; color: #333; }
+    .container { max-width: 500px; margin: auto; padding: 1rem; }
+    .title-container { text-align: center; margin-bottom: 1rem; }
+    h1 { font-size: 1.75rem; margin: 0; }
+    .subtitle { margin-top: .5rem; font-size: 1.125rem; color: #555; }
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 1rem; margin-bottom: 1rem; }
+    .field { margin-bottom: .75rem; }
+    label { display: block; margin-bottom: .25rem; font-weight: 500; }
+    input[type=file] { width: 100%; }
+    select, input[type=number] { width: 100%; padding: .5rem; border: 1px solid #ddd; border-radius: 4px; }
+    .presets { display: flex; gap: .5rem; margin-bottom: .75rem; }
+    .presets button { flex: 1; padding: .5rem; border: none; border-radius: 4px; background: #e5e7eb; cursor: pointer; }
+    .presets button.active { background: #3b82f6; color: #fff; }
+    #generate { width: 100%; padding: .75rem; font-size: 1rem; border: none; border-radius: 4px; background: #3b82f6; color: #fff; cursor: pointer; }
+    #generate:disabled { opacity: .6; cursor: default; }
+    #spinner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,.6); align-items: center; justify-content: center; z-index: 9999; }
+    #spinner img { width: 50px; }
 
-    /* ——— preview gets same frame as sliders ——— */
-    #previewContainer{border:1px solid #eee;padding:1rem;border-radius:8px;margin-top:.5rem}
-    #previewContainer img{max-width:100%;border-radius:6px}
+    .accordion { cursor: pointer; padding: .5rem 0; font-weight: 500; }
+    .panel { max-height: 0; overflow: hidden; transition: max-height 0.2s ease-out; }
 
-    /* ——— slider block ——— */
-    .slider-wrap{display:flex;flex-direction:column;align-items:center;gap:.5rem;margin-bottom:1.5rem;position:relative;border:1px solid #eee;padding:1rem;border-radius:8px}
-    .slider-wrap img{max-width:100%;border-radius:6px}
-    .nav-btn{display:none;position:absolute;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.45);color:#fff;border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:20px;line-height:34px;text-align:center}
-    .slider-wrap:hover .nav-btn{display:block}
-    .nav-prev{left:4px}.nav-next{right:4px}
-    .btn-dl{padding:.4rem 1rem;font-size:.9rem;border:none;border-radius:4px;background:#3b82f6;color:#fff;cursor:pointer}
+    /* hide preview until image chosen */
+    #previewContainer { display: none; border: 1px solid #eee; padding: 1rem; border-radius: 8px; margin-top: .5rem; }
+    #previewContainer img { max-width: 100%; border-radius: 6px; }
 
-    @media(min-width:640px){.nav-btn{display:block}}
+    .slider-wrap { display: flex; flex-direction: column; align-items: center; gap: .5rem; margin-bottom: 1.5rem; position: relative; border: 1px solid #eee; padding: 1rem; border-radius: 8px; }
+    .slider-wrap img { max-width: 100%; border-radius: 6px; }
+    .nav-btn { display: none; position: absolute; top: 50%; transform: translateY(-50%); background: rgba(0,0,0,.45); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 34px; text-align: center; }
+    .slider-wrap:hover .nav-btn { display: block; }
+    .nav-prev { left: 4px; }
+    .nav-next { right: 4px; }
+    .btn-dl { padding: .4rem 1rem; font-size: .9rem; border: none; border-radius: 4px; background: #3b82f6; color: #fff; cursor: pointer; }
+
+    /* history: wrap thumbnails into unlimited rows */
+    #history {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      overflow: visible;
+    }
+    .history-thumb { width: 80px; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; opacity: 0.7; margin-bottom: 0.5rem; }
+    .history-thumb.selected { border-color: #3b82f6; opacity: 1; }
+
+    @media(min-width:640px) { .nav-btn { display: block; } }
+
+    /* ── User-menu styles ───────────────────────────────────────────────── */
+  .topbar {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .user-icon-btn {
+    background: none;
+    border: none;
+    position: relative;
+    cursor: pointer;
+    color: #333;
+  }
+  .user-icon-btn .badge {
+    position: absolute;
+    top: -4px; right: -4px;
+    background: #3b82f6;
+    color: #fff;
+    font-size: 0.6rem;
+    padding: 2px 4px;
+    border-radius: 8px;
+  }
+
+  .user-menu {
+    position: absolute;
+    right: 0;
+    margin-top: 0.5rem;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    width: 200px;
+    padding: 0.5rem;
+    z-index: 100;
+  }
+  .user-menu.hidden { display: none; }
+
+  .menu-section { margin-bottom: 0.75rem; }
+
+  .menu-thumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .menu-thumbs img {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+
+  .menu-btn {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    font-size: 0.9rem;
+  }
+  .menu-btn:hover { background: #f3f4f6; }
+  
+  /* add these styles into your <style> block */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    max-width: 300px;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-size: 0.95rem;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+    z-index: 1000;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .modal.hidden { display: none; }
+  .modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+  }
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+  }
+  .modal-content {
+    position: relative;
+    background: #fff;
+    border-radius: 8px;
+    padding: 2rem;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .btn-primary { background:#10b981; color:#fff; padding:0.5rem 1rem; border:none; border-radius:4px; cursor:pointer; }
+  .btn-secondary { background:#e5e7eb; color:#333; padding:0.5rem 1rem; border:none; border-radius:4px; cursor:pointer; margin-left:0.5rem; }
+
+
   </style>
 </head>
 <body>
+
+  <div id="limit-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <h2>👋 Whoa there!</h2>
+      <p>You’ve hit your 10-free-triad limit.</p>
+      <p>Subscribe for <strong>$9/month</strong> to keep generating—unlimited.</p>
+      <button id="modal-subscribe" class="btn-primary">Subscribe Now</button>
+      <button id="modal-close" class="btn-secondary">Maybe Later</button>
+    </div>
+  </div>
+
+  <!-- put this just inside your <body> -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Top-right user menu -->
+  <div class="topbar">
+    <!-- SIGN IN button (hidden when logged in) -->
+    <button id="sign-in-btn" class="menu-btn">Sign In</button>
+
+    <!-- user icon (hidden until logged in) -->
+    <button id="user-menu-button" class="user-icon-btn hidden" aria-label="Open user menu">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 12c2.7 0 4.9-2.2 4.9-4.9S14.7 2.2 12 2.2 7.1 4.4 7.1 7.1 9.3 12 12 12zm0 2.4c-3.3 0-9.8 1.7-9.8 5v2.4h19.6v-2.4c0-3.3-6.5-5-9.8-5z"/>
+      </svg>
+      <span id="history-badge" class="badge">0</span>
+    </button>
+
+    <div id="user-menu" class="user-menu hidden">
+      <div class="menu-section">
+        <strong>History (<span id="history-count">0</span>)</strong>
+        <div id="menu-history-thumbs" class="menu-thumbs"></div>
+      </div>
+      <div class="menu-section">
+        <button id="manage-billing" class="menu-btn">Manage Billing</button>
+      </div>
+      <button id="sign-out-btn" class="menu-btn">Sign Out</button>
+    </div>
+  </div>
+
   <div id="spinner"><img src="/static/loader.gif" alt="Loading…"></div>
 
   <div class="container">
@@ -45,26 +224,24 @@
       <p class="subtitle">Resize for full-screen Stories and Posts.</p>
     </div>
 
-    <!-- ——— controls ——— -->
+    <!-- upload + generate -->
     <div class="card">
       <div class="field">
         <label for="img">Upload Image</label>
         <input type="file" id="img" accept="image/*">
         <div id="previewContainer"></div>
       </div>
-
       <div class="presets">
-        <button data-ratio="9:16" class="preset active">Stories&nbsp;(9 : 16)</button>
-        <button data-ratio="4:5"  class="preset">Posts&nbsp;(4 : 5)</button>
+        <button data-ratio="9:16" class="preset active">Stories (9∶16)</button>
+        <button data-ratio="4:5" class="preset">Posts (4∶5)</button>
       </div>
-
-      <input type="hidden" id="width"  value="720">
+      <input type="hidden" id="width" value="720">
       <input type="hidden" id="height" value="1280">
 
       <div class="accordion">Advanced Options ▼</div>
       <div class="panel">
         <div class="field">
-          <label for="overlap">Overlap&nbsp;(%)</label>
+          <label for="overlap">Overlap (%)</label>
           <input type="number" id="overlap" value="1" min="0" max="100">
         </div>
         <div class="field">
@@ -79,112 +256,419 @@
       <button id="generate">Generate</button>
     </div>
 
-    <!-- ——— results ——— -->
-    <div id="output" class="card"></div>
+    <!-- dynamic output area -->
+    <div id="output-area"></div>
+
+    <!-- subscription -->
+    <div id="subscribe-section" class="card" style="display: none; text-align:center; margin-top:1rem;">
+      <h3>Want Unlimited Generations?</h3>
+      <p>Subscribe for just $9.99/month</p>
+      <button id="subscribe-button" style="padding:.75rem 1.5rem;background:#10b981;color:#fff;border:none;border-radius:4px;cursor:pointer;">
+        Subscribe
+      </button>
+    </div>
   </div>
 
-<script>
-const imgInput = document.getElementById('img');
-const genBtn   = document.getElementById('generate');
-const spinner  = document.getElementById('spinner');
-const output   = document.getElementById('output');
-const previewBox = document.getElementById('previewContainer');
+  <script>
+    const imgInput = document.getElementById('img');
+    const genBtn = document.getElementById('generate');
+    const spinner = document.getElementById('spinner');
+    const previewBox = document.getElementById('previewContainer');
+    const outputArea = document.getElementById('output-area');
+    let firstGen = true;
 
-/* accordion */
-document.querySelector('.accordion').onclick=e=>{
-  const p=e.currentTarget.nextElementSibling;
-  e.currentTarget.classList.toggle('active');
-  p.style.maxHeight = p.style.maxHeight?null:p.scrollHeight+'px';
-};
+    // Accordion
+    document.querySelector('.accordion').onclick = e => {
+      const panel = e.currentTarget.nextElementSibling;
+      panel.style.maxHeight = panel.style.maxHeight ? null : panel.scrollHeight + 'px';
+    };
 
-/* presets */
-const preset = {"9:16":{w:720,h:1280},"4:5":{w:1088,h:1360}};
-document.querySelectorAll('.preset').forEach(btn=>{
-  btn.onclick=()=>{
-    document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const {w,h}=preset[btn.dataset.ratio];
-    width.value=w;height.value=h;
-  };
-});
+    // Preset ratio buttons
+    const preset = { "9:16": { w:720, h:1280 }, "4:5": { w:1088, h:1360 } };
+    document.querySelectorAll('.preset').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.preset').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const { w, h } = preset[btn.dataset.ratio];
+        width.value = w; height.value = h;
+      };
+    });
 
-/* preview */
-imgInput.onchange=e=>{
-  previewBox.innerHTML='';
-  const f=e.target.files[0]; if(!f)return;
-  const img=document.createElement('img');
-  img.src=URL.createObjectURL(f);
-  previewBox.append(img);
-};
+    // Preview
+    imgInput.onchange = e => {
+      previewBox.innerHTML = '';
+      const f = e.target.files[0];
+      if (!f) return;
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(f);
+      previewBox.append(img);
+      previewBox.style.display = 'block';
+    };
 
-/* build one slider block */
-function makeSlider(urls){
-  const wrap=document.createElement('div');wrap.className='slider-wrap';
+    // Slider builder
+    function makeSlider(urls) {
+      const wrap = document.createElement('div');
+      wrap.className = 'slider-wrap';
+      const img = document.createElement('img');
+      img.src = urls[0];
+      wrap.append(img);
+      let idx = 0;
+      function show(i) {
+        idx = (i + urls.length) % urls.length;
+        img.src = urls[idx];
+      }
+      ['❮','❯'].forEach((sym,i) => {
+        const btn = document.createElement('button');
+        btn.textContent = sym;
+        btn.className = `nav-btn ${i===0?'nav-prev':'nav-next'}`;
+        btn.onclick = () => show(idx + (i===0?-1:1));
+        wrap.append(btn);
+      });
+      const dl = document.createElement('button');
+      dl.textContent = 'Download';
+      dl.className = 'btn-dl';
+      dl.onclick = () => {
+        const a = document.createElement('a');
+        a.href = urls[idx];
+        a.download = 'outpaint.png';
+        a.click();
+      };
+      wrap.append(dl);
+      return wrap;
+    }
 
-  const img=document.createElement('img');img.src=urls[0];wrap.append(img);
+    // Ensure output containers exist
+    function ensureOutputContainers() {
+      if (!firstGen) return;
+      firstGen = false;
+      const recent = document.createElement('div');
+      recent.id = 'recent';
+      recent.className = 'card';
+      const history = document.createElement('div');
+      history.id = 'history';
+      history.className = 'card';
+      outputArea.append(recent, history);
+    }
 
-  const prev=document.createElement('button');prev.textContent='❮';prev.className='nav-btn nav-prev';
-  const next=document.createElement('button');next.textContent='❯';next.className='nav-btn nav-next';
-  wrap.append(prev,next);
+    // Show latest triad
+    function showRecent(urls) {
+      const recent = document.getElementById('recent');
+      recent.innerHTML = '';
+      recent.append(makeSlider(urls));
+      document.querySelectorAll('.history-thumb').forEach(t => {
+        t.classList.toggle('selected', t.src === urls[0]);
+      });
+    }
 
-  const dl=document.createElement('button');dl.textContent='Download';dl.className='btn-dl';
-  wrap.append(dl);
+    // Add thumbnail to history *and* persist in Supabase
+    async function addHistory(urls) {
+      const firstUrl = urls[0];
+      const historyEl = document.getElementById('history');
 
-  let idx=0,total=urls.length;
-  const show=i=>{idx=(i+total)%total;img.src=urls[idx];};
-  prev.onclick=_=>show(idx-1);
-  next.onclick=_=>show(idx+1);
+      // avoid dupes in the DOM
+      if ([...historyEl.children].some(t => t.src === firstUrl)) return;
 
-  /* swipe on mobile */
-  img.addEventListener('touchstart',e=>wrap._sx=e.touches[0].clientX,{passive:true});
-  img.addEventListener('touchend',e=>{
-    if(wrap._sx==null)return;
-    const dx=e.changedTouches[0].clientX-wrap._sx;
-    if(Math.abs(dx)>30) show(dx>0?idx-1:idx+1);
-    wrap._sx=null;
-  },{passive:true});
+      // 1) create the thumb
+      const thumb = document.createElement('img');
+      thumb.src = firstUrl;
+      thumb.className = 'history-thumb';
+      thumb.onclick = () => {
+        document.querySelectorAll('.history-thumb').forEach(t => t.classList.remove('selected'));
+        thumb.classList.add('selected');
+        showRecent(urls);
+      };
 
-  dl.onclick=_=>{
-    const a=document.createElement('a');
-    a.href=urls[idx];a.download='outpaint.png';a.click();
-  };
-  return wrap;
-}
+      // 2) insert into the page
+      historyEl.prepend(thumb);
+      document.querySelectorAll('.history-thumb').forEach(t => t.classList.remove('selected'));
+      thumb.classList.add('selected');
 
-/* generate */
-async function generate(){
-  if(!imgInput.files[0]){alert('Select an image first');return;}
-  spinner.style.display='flex';genBtn.disabled=true;
+      // 3) persist to your `generations` table
+      try {
+        const {
+          data: { user }
+        } = await supabase.auth.getUser();
 
-  const fd=new FormData();
-  fd.append('image',imgInput.files[0]);
-  fd.append('width',width.value);fd.append('height',height.value);
-  fd.append('prompt_input','');
-  fd.append('overlap_percentage',overlap.value);
-  fd.append('num_inference_steps',8);
-  fd.append('resize_option','Full');fd.append('custom_resize_percentage',50);
-  fd.append('alignment',alignment.value);
-  fd.append('overlap_left',false);fd.append('overlap_right',false);
-  fd.append('overlap_top',true);fd.append('overlap_bottom',true);
+        const { error } = await supabase
+          .from('generations')
+          .insert({
+            user_id: user.id,
+            image_url: firstUrl
+          });
 
-  try{
-    const r=await fetch('/api/infer/',{method:'POST',body:fd});
-    if(!r.ok) throw new Error(await r.text());
-    const {urls}=await r.json();
-    if(!urls?.length) throw new Error('No images returned');
+        if (error) console.error('🚨 failed to save generation:', error);
+      } catch (err) {
+        console.error('🚨 error in addHistory supabase block:', err);
+      }
 
-    output.prepend(makeSlider(urls));      // newest on top
-    genBtn.textContent='Re-Generate';
-  }catch(err){alert('Error: '+err.message);}
-  finally{spinner.style.display='none';genBtn.disabled=false;}
-}
-genBtn.onclick=generate;
+      // now enforce the limit
+        enforceGenerationLimitAfterHistory(urls);
 
-/* drag-drop guard */
-['dragenter','dragover','dragleave','drop'].forEach(evt=>{
-  imgInput.addEventListener(evt,e=>{e.preventDefault();e.stopPropagation();},false);
-});
-imgInput.ondrop=e=>{imgInput.files=e.dataTransfer.files};
-</script>
+    }
+
+    // Core generate flow
+    async function generate() {
+
+      // 0) If they’ve already made 10 triads, block them here
+      const freeCount = document.querySelectorAll('.history-thumb').length;
+      if (freeCount >= 10) {
+        return modal.classList.remove('hidden');
+      }
+
+      if (!imgInput.files[0]) return alert('Select an image first');
+      spinner.style.display = 'flex';
+      genBtn.disabled = true;
+
+      const fd = new FormData();
+      fd.append('image', imgInput.files[0]);
+      fd.append('width', width.value);
+      fd.append('height', height.value);
+      fd.append('prompt_input', '');
+      fd.append('overlap_percentage', overlap.value);
+      fd.append('num_inference_steps', 8);
+      fd.append('resize_option', 'Full');
+      fd.append('custom_resize_percentage', 50);
+      fd.append('alignment', alignment.value);
+      fd.append('overlap_left', false);
+      fd.append('overlap_right', false);
+      fd.append('overlap_top', true);
+      fd.append('overlap_bottom', true);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
+        const r = await fetch('/api/infer/', {
+          method: 'POST',
+          body: fd,
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!r.ok) {
+          // parse JSON body so we can grab `detail`:
+          let body;
+          try {
+            body = await r.json();
+          } catch {
+            body = { detail: await r.text() };
+          }
+          // throw an Error whose message is just the human string:
+          throw new Error(body.detail || 'Something went wrong');
+        }
+
+        const { urls } = await r.json();
+        if (!urls?.length) throw new Error('No images returned');
+
+        ensureOutputContainers();
+        addHistory(urls);
+        showRecent(urls);
+        genBtn.textContent = 'Re-Generate';
+      } catch (err) {
+        showToast(err.detail || err.message || 'Something went wrong.');
+      } finally {
+        spinner.style.display = 'none';
+        genBtn.disabled = false;
+      }
+    }
+    genBtn.onclick = generate;
+
+    // Drag-and-drop guard
+    ['dragenter','dragover','dragleave','drop'].forEach(evt => {
+      imgInput.addEventListener(evt, e => { e.preventDefault(); e.stopPropagation(); }, false);
+    });
+    imgInput.ondrop = e => { imgInput.files = e.dataTransfer.files; };
+
+    // Auth helpers
+    async function signInWithGoogle() {
+      await supabase.auth.signInWithOAuth({ provider: 'google' });
+    }
+
+    async function signOut() {
+      await supabase.auth.signOut();
+
+      // 1) Reset UI elements
+      updateAuthUI(null);                // hides icon & dropdown
+      menuHistory.innerHTML = '';        // clear dropdown
+      historyBadge.textContent = '0';    // reset badge
+      historyCountEl.textContent = '0';  // reset count
+
+      // 2) Clear the main generation area
+      document.getElementById('output-area').innerHTML = '';
+      firstGen = true;
+    }
+
+    // ── Auth‐state listeners ────────────────────────────────────────────────
+    // A) Fires whenever you sign in or out
+    supabase.auth.onAuthStateChange((event, session) => {
+      const user = session?.user || null
+      updateAuthUI(user)
+      if (user) {
+        loadHistoryFromSupabase()
+      }
+    });
+
+    // B) Fires once on page load if you’re already signed in
+    supabase.auth.getUser().then(({ data, error }) => {
+      const user = data?.user || null
+      updateAuthUI(user)
+      if (user) {
+        loadHistoryFromSupabase()
+      }
+    });
+
+
+    function updateAuthUI(user) {
+      if (user) {
+        // hide “Sign In” and show the little avatar
+        signInBtn.hidden       = true;
+        userMenuButton.hidden  = false;
+      } else {
+        // show “Sign In” and hide the avatar (and force‐close the menu)
+        signInBtn.hidden       = false;
+        userMenuButton.hidden  = true;
+        userMenu.hidden        = true;
+      }
+    }
+
+    async function loadHistoryFromSupabase() {
+      // 0) grab the logged-in user (if any)
+      const { data: sessionData, error: sessionError } = await supabase.auth.getUser();
+      if (sessionError) {
+        console.error('Error fetching user session:', sessionError);
+        return;
+      }
+
+      const user = sessionData?.user;
+      if (!user) {
+        console.warn('No active user—skipping history load');
+        return;
+      }
+
+      // 1) now fetch only the persisted rows for this user
+      const { data: rows, error } = await supabase
+        .from('generations')
+        .select('image_url')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Could not load history:', error);
+        return;
+      }
+
+      // 2) clear only the dropdown panel
+      menuHistory.innerHTML = '';
+
+      // 3) repopulate the dropdown with persisted URLs
+      rows.forEach(r => {
+        const img = document.createElement('img');
+        img.src = r.image_url;
+        img.style.width = '40px';
+        img.addEventListener('click', () => showRecent([r.image_url]));
+        menuHistory.append(img);
+      });
+
+      // 4) update counts on the badge and title
+      historyCountEl.textContent = rows.length;
+      historyBadge.textContent   = rows.length;
+    }
+
+
+    // Stripe checkout
+    document.getElementById('subscribe-button').onclick = async () => {
+      const res = await fetch('/api/create-checkout-session', { method: 'POST' });
+      const { url, error } = await res.json();
+      if (url) location.href = url;
+      else alert(error || 'Error creating checkout session');
+    };
+
+
+    // ── User-menu interactivity ───────────────────────────────────────────
+    const userMenuButton = document.getElementById('user-menu-button');
+    const userMenu       = document.getElementById('user-menu');
+    const historyBadge   = document.getElementById('history-badge');
+    const historyCountEl = document.getElementById('history-count');
+    const menuHistory    = document.getElementById('menu-history-thumbs');
+    const signOutBtn     = document.getElementById('sign-out-btn');
+    const manageBilling  = document.getElementById('manage-billing');
+
+    // grab the new sign-in button
+    const signInBtn      = document.getElementById('sign-in-btn');
+
+    // hook it up
+    signInBtn.addEventListener('click', () => signInWithGoogle());
+
+    // Toggle menu on icon click
+    userMenuButton.addEventListener('click', () => {
+      userMenu.classList.toggle('hidden');
+    });
+
+    // Close when clicking outside
+    document.addEventListener('click', e => {
+      if (!userMenu.contains(e.target) && !userMenuButton.contains(e.target)) {
+        userMenu.classList.add('hidden');
+      }
+    });
+
+    // Sign out from within menu
+    signOutBtn.addEventListener('click', () => signOut());
+
+    // Navigate to billing
+    manageBilling.addEventListener('click', () => {
+      window.location.href = '/billing';
+    });
+
+    // Re-render history thumbnails + counts
+    function renderUserHistory() {
+      const thumbs = Array.from(document.querySelectorAll('#history .history-thumb'));
+      menuHistory.innerHTML = '';
+      thumbs.forEach(t => {
+        const img = t.cloneNode();
+        img.style.width = '40px';
+        menuHistory.append(img);
+      });
+      historyCountEl.textContent = thumbs.length;
+      historyBadge.textContent   = thumbs.length;
+    }
+
+    // And after your first call to addHistory(urls), call:
+    // renderUserHistory();
+
+    // place this in your <script> after you define “toast” in the DOM
+    function showToast(message, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      // hide after `duration` ms
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    // replace alert(...) with:
+    showToast(err.detail || err.message || 'Something went wrong.');
+
+    // helper to show/hide the modal
+    const modal       = document.getElementById('limit-modal');
+    const subBtn      = document.getElementById('modal-subscribe');
+    const closeBtn    = document.getElementById('modal-close');
+    subBtn.onclick    = () => window.location.href = '/billing'; // or your subscribe flow
+    closeBtn.onclick  = () => modal.classList.add('hidden');
+
+    function checkGenerationLimit() {
+      // count how many thumbnails are in the history
+      const count = document.querySelectorAll('.history-thumb').length;
+      if (count >= 10) {
+        modal.classList.remove('hidden');
+      }
+    }
+
+    // tie it into your “addHistory” flow:
+    async function enforceGenerationLimitAfterHistory(urls) {
+      // … existing thumb creation + supabase logic …
+
+      // after you’ve successfully persisted & appended:
+      checkGenerationLimit();
+    }
+
+
+
+  </script>
 </body>
 </html>
